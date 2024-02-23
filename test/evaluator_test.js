@@ -143,6 +143,45 @@ describe("evaluator test", () => {
       testIntegerObject(evaluated, test[1]);
     }
   });
+
+  it("TestErrorHandling", () => {
+    let tests = [
+      ["5 + true;", "type mismatch: INTEGER + BOOLEAN"],
+      ["5 + true; 5;", "type mismatch: INTEGER + BOOLEAN"],
+      ["-true", "unknown operator: -BOOLEAN"],
+      ["true + false;", "unknown operator: BOOLEAN + BOOLEAN"],
+      ["true + false + true + false;", "unknown operator: BOOLEAN + BOOLEAN"],
+      // ["5; true + false; 5", "unknown operator: BOOLEAN + BOOLEAN"],
+      // ["if (10 > 1) { true + false; }", "unknown operator: BOOLEAN + BOOLEAN"],
+      // [
+      //   `
+      // if (10 > 1) {
+      //   if (10 > 1) {
+      //     return true + false;
+      //   }
+
+      //   return 1;
+      // }
+      // `,
+      //   "unknown operator: BOOLEAN + BOOLEAN",
+      // ],
+    ];
+
+    for (let test of tests) {
+      let evaluated = testEval(test[0]);
+
+      let errObj = evaluated;
+      if (!(errObj instanceof object.Error)) {
+        assert.fail(`no error object returned. got=${evaluated}`);
+      }
+
+      if (errObj.message != test[1]) {
+        assert.fail(
+          `wrong error message. expected=${test[1]}, got=${errObj.message}`
+        );
+      }
+    }
+  });
 });
 
 function testEval(input) {

@@ -16,10 +16,19 @@ export function Eval(node) {
     return nativeBoolToBooleanObject(node.value);
   } else if (node instanceof ast.PrefixExpression) {
     let right = Eval(node.right);
+    if (isError(right)) {
+      return right;
+    }
     return evalPrefixExpression(node.operator, right);
   } else if (node instanceof ast.InfixExpression) {
     let left = Eval(node.left);
     let right = Eval(node.right);
+    if (isError(left)) {
+      return left;
+    }
+    if (isError(right)) {
+      return right;
+    }
     return evalInfixExpression(node.operator, left, right);
   } else if (node instanceof ast.BlockStatement) {
     return evalBlockStatement(node);
@@ -27,25 +36,30 @@ export function Eval(node) {
     return evalIfExpression(node);
   } else if (node instanceof ast.ReturnStatement) {
     let val = Eval(node.returnValue);
+    if (isError(val)) {
+      return val;
+    }
     return new object.ReturnValue(val);
   }
 
   return null;
 }
 
-export function evalStatements(stmts) {
-  let result;
+// export function evalStatements(stmts) {
+//   let result;
 
-  for (let stmt of stmts) {
-    result = Eval(stmt);
+//   for (let stmt of stmts) {
+//     result = Eval(stmt);
 
-    if (result instanceof object.ReturnValue) {
-      return result.value;
-    }
-  }
+//     if (result instanceof object.ReturnValue) {
+//       return result.value;
+//     } else if (result instanceof object.Error) {
+//       return result;
+//     }
+//   }
 
-  return result;
-}
+//   return result;
+// }
 
 export function nativeBoolToBooleanObject(input) {
   if (input) {
@@ -62,7 +76,7 @@ export function evalPrefixExpression(operator, right) {
     return evalMinusPrefixOperatorExpression(right);
   }
 
-  return NULL;
+  return newError(`unknown operator: ${operator} ${right.type()}`);
 }
 
 export function evalBangOperatorExpression(right) {
@@ -79,7 +93,7 @@ export function evalBangOperatorExpression(right) {
 
 export function evalMinusPrefixOperatorExpression(right) {
   if (right.type() !== object.INTEGER_OBJ) {
-    return NULL;
+    return newError(`unknown operator: -${right.type()}`);
   }
 
   let value = right.value;
@@ -96,8 +110,14 @@ function evalInfixExpression(operator, left, right) {
     return nativeBoolToBooleanObject(left === right);
   } else if (operator === "!=") {
     return nativeBoolToBooleanObject(left != right);
+  } else if (left.type() != right.type()) {
+    return newError(
+      `type mismatch: ${left.type()} ${operator} ${right.type()}`
+    );
   } else {
-    return NULL;
+    return newError(
+      `unknown operator: ${left.type()} ${operator} ${right.type()}`
+    );
   }
 }
 
@@ -122,12 +142,17 @@ function evalIntegerInfixExpression(operator, left, right) {
   } else if (operator === "!=") {
     return nativeBoolToBooleanObject(leftVal != rightVal);
   } else {
-    return NULL;
+    return newError(
+      `unknown operator: ${left.type()} ${operator} ${right.type()}`
+    );
   }
 }
 
 function evalIfExpression(ie) {
   let condition = Eval(ie.condition);
+  if (isError(condition)) {
+    return condition;
+  }
 
   if (isTruthy(condition)) {
     return Eval(ie.consequence);
@@ -158,6 +183,8 @@ function evalProgram(program) {
 
     if (result instanceof object.ReturnValue) {
       return result.value;
+    } else if (result instanceof object.Error) {
+      return result;
     }
   }
 
@@ -168,12 +195,25 @@ function evalBlockStatement(block) {
   let result;
 
   for (let statement of block.statements) {
-    console.log(statement);
     result = Eval(statement);
 
-    if (result.type() === object.RETURN_VALUE_OBJ) {
-      return result;
+    if (result != null) {
+      let rt = result.type();
+      if (rt === object.RETURN_VALUE_OBJ || rt === object.ERROR_OBJ) {
+        return result;
+      }
     }
   }
   return result;
+}
+
+function newError(str) {
+  return new object.Error(str);
+}
+
+function isError(obj) {
+  if (obj != null) {
+    return obj.type() === object.ERROR_OBJ;
+  }
+  return false;
 }

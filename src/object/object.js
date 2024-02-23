@@ -4,6 +4,7 @@ export const INTEGER_OBJ = "INTEGER";
 export const BOOLEAN_OBJ = "BOOLEAN";
 export const NULL_OBJ = "NULL";
 export const RETURN_VALUE_OBJ = "RETURN_VALUE";
+export const ERROR_OBJ = "ERROR";
 
 export class Object {
   constructor() {}
@@ -69,5 +70,20 @@ export class ReturnValue extends Object {
 
   inspect() {
     return this.value.inspect();
+  }
+}
+
+export class Error extends Object {
+  constructor(message) {
+    super();
+    this.message = message;
+  }
+
+  type() {
+    return ERROR_OBJ;
+  }
+
+  inspect() {
+    return "ERROR: " + this.message;
   }
 }
