@@ -2,6 +2,7 @@ import * as ast from "../src/ast/ast.js";
 import * as parser from "../src/parser/parser.js";
 import Lexer from "../src/lexer/lexer.js";
 import * as object from "../src/object/object.js";
+import * as environment from "../src/object/environment.js";
 import * as ev from "../src/evaluator/evaluator.js";
 import assert from "assert";
 
@@ -151,6 +152,7 @@ describe("evaluator test", () => {
       ["-true", "unknown operator: -BOOLEAN"],
       ["true + false;", "unknown operator: BOOLEAN + BOOLEAN"],
       ["true + false + true + false;", "unknown operator: BOOLEAN + BOOLEAN"],
+      ["foobar", "identifier not found: foobar"],
       // ["5; true + false; 5", "unknown operator: BOOLEAN + BOOLEAN"],
       // ["if (10 > 1) { true + false; }", "unknown operator: BOOLEAN + BOOLEAN"],
       // [
@@ -169,6 +171,7 @@ describe("evaluator test", () => {
 
     for (let test of tests) {
       let evaluated = testEval(test[0]);
+      console.log(evaluated);
 
       let errObj = evaluated;
       if (!(errObj instanceof object.Error)) {
@@ -182,14 +185,28 @@ describe("evaluator test", () => {
       }
     }
   });
+
+  it("TestLetStatements", () => {
+    let tests = [
+      ["let a = 5; a;", 5],
+      ["let a = 5 * 5; a;", 25],
+      ["let a = 5; let b = a; b;", 5],
+      ["let a = 5; let b = a; let c = a + b + 5; c;", 15],
+    ];
+
+    for (let test of tests) {
+      testIntegerObject(testEval(test[0]), test[1]);
+    }
+  });
 });
 
 function testEval(input) {
   let l = new Lexer(input);
   let p = new parser.Parser(l);
   let program = p.parseProgram();
+  let env = environment.newEnvironment();
 
-  return ev.Eval(program);
+  return ev.Eval(program, env);
 }
 
 function testIntegerObject(obj, expected) {

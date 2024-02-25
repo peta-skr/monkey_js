@@ -5,24 +5,24 @@ export const TRUE = new object.Boolean(true);
 export const FALSE = new object.Boolean(false);
 export const NULL = new object.Null();
 
-export function Eval(node) {
+export function Eval(node, env) {
   if (node instanceof ast.Program) {
-    return evalProgram(node);
+    return evalProgram(node, env);
   } else if (node instanceof ast.ExpressionStatement) {
-    return Eval(node.expression);
+    return Eval(node.expression, env);
   } else if (node instanceof ast.IntegerLiteral) {
     return new object.Integer(node.value);
   } else if (node instanceof ast.Boolean) {
     return nativeBoolToBooleanObject(node.value);
   } else if (node instanceof ast.PrefixExpression) {
-    let right = Eval(node.right);
+    let right = Eval(node.right, env);
     if (isError(right)) {
       return right;
     }
     return evalPrefixExpression(node.operator, right);
   } else if (node instanceof ast.InfixExpression) {
-    let left = Eval(node.left);
-    let right = Eval(node.right);
+    let left = Eval(node.left, env);
+    let right = Eval(node.right, env);
     if (isError(left)) {
       return left;
     }
@@ -31,15 +31,24 @@ export function Eval(node) {
     }
     return evalInfixExpression(node.operator, left, right);
   } else if (node instanceof ast.BlockStatement) {
-    return evalBlockStatement(node);
+    return evalBlockStatement(node, env);
   } else if (node instanceof ast.IfExpression) {
-    return evalIfExpression(node);
+    return evalIfExpression(node, env);
   } else if (node instanceof ast.ReturnStatement) {
-    let val = Eval(node.returnValue);
+    let val = Eval(node.returnValue, env);
     if (isError(val)) {
       return val;
     }
     return new object.ReturnValue(val);
+  } else if (node instanceof ast.LetStatement) {
+    let val = Eval(node.value, env);
+    if (isError(val)) {
+      return val;
+    }
+
+    env.set(node.name.value, val);
+  } else if (node instanceof ast.Identifier) {
+    return evalIdentifier(node, env);
   }
 
   return null;
@@ -148,16 +157,16 @@ function evalIntegerInfixExpression(operator, left, right) {
   }
 }
 
-function evalIfExpression(ie) {
-  let condition = Eval(ie.condition);
+function evalIfExpression(ie, env) {
+  let condition = Eval(ie.condition, env);
   if (isError(condition)) {
     return condition;
   }
 
   if (isTruthy(condition)) {
-    return Eval(ie.consequence);
+    return Eval(ie.consequence, env);
   } else if (ie.alternative != null) {
-    return Eval(ie.alternative);
+    return Eval(ie.alternative, env);
   } else {
     return NULL;
   }
@@ -175,11 +184,11 @@ function isTruthy(obj) {
   }
 }
 
-function evalProgram(program) {
+function evalProgram(program, env) {
   let result;
 
   for (let statement of program.Statements) {
-    result = Eval(statement);
+    result = Eval(statement, env);
 
     if (result instanceof object.ReturnValue) {
       return result.value;
@@ -191,11 +200,11 @@ function evalProgram(program) {
   return result;
 }
 
-function evalBlockStatement(block) {
+function evalBlockStatement(block, env) {
   let result;
 
   for (let statement of block.statements) {
-    result = Eval(statement);
+    result = Eval(statement, env);
 
     if (result != null) {
       let rt = result.type();
@@ -216,4 +225,12 @@ function isError(obj) {
     return obj.type() === object.ERROR_OBJ;
   }
   return false;
+}
+
+function evalIdentifier(node, env) {
+  if (!env.has(node.value)) {
+    return newError("identifier not found: " + node.value);
+  }
+  let val = env.get(node.value);
+  return val;
 }

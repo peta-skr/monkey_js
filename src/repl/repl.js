@@ -3,12 +3,14 @@ import * as token from "../token/token.js";
 import * as readline from "node:readline/promises";
 import * as parser from "../parser/parser.js";
 import * as evaluator from "../evaluator/evaluator.js";
+import * as object from "../object/environment.js";
 import { stdin as input, stdout as output } from "node:process";
 
 const PROMPT = ">> ";
 
 export async function start() {
   const rl = readline.createInterface({ input, output });
+  let env = object.newEnvironment();
 
   while (true) {
     const answer = await rl.question(PROMPT);
@@ -25,7 +27,7 @@ export async function start() {
       continue;
     }
 
-    let evaluated = evaluator.Eval(program);
+    let evaluated = evaluator.Eval(program, env);
 
     if (evaluated !== null) {
       console.log(evaluated.inspect());
